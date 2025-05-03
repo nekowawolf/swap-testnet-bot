@@ -68,30 +68,6 @@ func ApebondSwap(amount *big.Int, numswap int, direction string) {
         log.Fatalf("ABI error: %v", err)
     }
 
-    fmt.Println("\nInitial Balances:")
-    for i, key := range activeWallets {
-        pk, err := crypto.HexToECDSA(strings.TrimPrefix(key, "0x"))
-        if err != nil {
-            continue
-        }
-
-        address := crypto.PubkeyToAddress(pk.PublicKey)
-        client, err := ethclient.Dial(RPC_URL_MONAD)
-        if err != nil {
-            continue
-        }
-
-        monBalance, _ := getMONBalance(client, address)
-        wmonBalance, _ := getWMONBalance(client, address, wmonABI)
-        client.Close()
-
-        monBalanceFloat := new(big.Float).Quo(new(big.Float).SetInt(monBalance), big.NewFloat(1e18))
-        wmonBalanceFloat := new(big.Float).Quo(new(big.Float).SetInt(wmonBalance), big.NewFloat(1e18))
-
-        fmt.Printf("[Wallet #%d] Balance: %.4f MON | %.4f WMON\n\n", 
-            i+1, monBalanceFloat, wmonBalanceFloat)
-    }
-
     results := make(chan SwapResult, numswap)
     var wg sync.WaitGroup
     walletMutexes := make([]sync.Mutex, len(activeWallets))
@@ -102,22 +78,15 @@ func ApebondSwap(amount *big.Int, numswap int, direction string) {
         tokenName = "MON"
     }
 
-    fmt.Printf("\nPreparing to perform %d swap of %.4f %s to %s\n", 
+    fmt.Printf("\nPreparing to perform %d swaps of %.4f %s to %s\n", 
         numswap, amountFloat, tokenName, strings.Split(direction, "_")[2])
-    fmt.Println("Starting swap...\n")
+    fmt.Println("Starting swaps...\n")
 
     for i := 0; i < numswap; i++ {
         wg.Add(1)
         walletIndex := i % len(activeWallets)
+        
         currentDirection := direction
-
-        if numswap > 1 && i > 0 {
-            if direction == "MON_to_WMON" {
-                currentDirection = "WMON_to_MON"
-            } else {
-                currentDirection = "MON_to_WMON"
-            }
-        }
 
         go func(swapNum int, walletIdx int, dir string) {
             defer wg.Done()
@@ -142,6 +111,7 @@ func ApebondSwap(amount *big.Int, numswap int, direction string) {
 
     processSwapResults(results, numswap, wmonABI)
 }
+
 
 func getMONBalance(client *ethclient.Client, address common.Address) (*big.Int, error) {
     balance, err := client.BalanceAt(context.Background(), address, nil)
