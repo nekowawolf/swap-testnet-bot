@@ -46,8 +46,8 @@ func loadWMonABI() (abi.ABI, error) {
 func ApebondSwap(amount *big.Int, numswap int, direction string) {
     godotenv.Load()
 
-    wallets := make([]string, 10)
-    for i := 0; i < 10; i++ {
+    wallets := make([]string, 20)
+    for i := 0; i < 20; i++ {
         wallets[i] = os.Getenv(fmt.Sprintf("PRIVATE_KEYS_WALLET%d", i+1))
     }
 
@@ -335,8 +335,8 @@ func shortenHash(hash string) string {
 func ShowInitialBalances() {
     godotenv.Load()
 
-    wallets := make([]string, 10)
-    for w := 0; w < 10; w++ {
+    wallets := make([]string, 20)
+    for w := 0; w < 20; w++ {
         wallets[w] = os.Getenv(fmt.Sprintf("PRIVATE_KEYS_WALLET%d", w+1))
     }
 
