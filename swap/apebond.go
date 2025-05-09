@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+    "strconv"
+    "bufio"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind" 
@@ -41,6 +43,61 @@ type SwapResult struct {
 func loadWMonABI() (abi.ABI, error) {
 	abiJSON := `[{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"src","type":"address"},{"indexed":true,"internalType":"address","name":"guy","type":"address"},{"indexed":false,"internalType":"uint256","name":"wad","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"dst","type":"address"},{"indexed":false,"internalType":"uint256","name":"wad","type":"uint256"}],"name":"Deposit","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"src","type":"address"},{"indexed":true,"internalType":"address","name":"dst","type":"address"},{"indexed":false,"internalType":"uint256","name":"wad","type":"uint256"}],"name":"Transfer","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"src","type":"address"},{"indexed":false,"internalType":"uint256","name":"wad","type":"uint256"}],"name":"Withdrawal","type":"event"},{"stateMutability":"payable","type":"fallback"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"address","name":"","type":"address"}],"name":"allowance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"guy","type":"address"},{"internalType":"uint256","name":"wad","type":"uint256"}],"name":"approve","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"decimals","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"deposit","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"dst","type":"address"},{"internalType":"uint256","name":"wad","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"src","type":"address"},{"internalType":"address","name":"dst","type":"address"},{"internalType":"uint256","name":"wad","type":"uint256"}],"name":"transferFrom","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"wad","type":"uint256"}],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"}]`
 	return abi.JSON(strings.NewReader(abiJSON))
+}
+
+func Apebond() {
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Println("\nSwap direction:")
+	fmt.Println("1. MON to WMON")
+	fmt.Println("2. WMON to MON")
+	fmt.Print("Enter your choice: ")
+	directionChoice, _ := reader.ReadString('\n')
+	directionChoice = strings.TrimSpace(directionChoice)
+
+	var direction string
+	switch directionChoice {
+	case "1":
+		direction = "MON_to_WMON"
+	case "2":
+		direction = "WMON_to_MON"
+	default:
+		fmt.Println("Invalid choice. Please select 1 or 2.")
+		os.Exit(1)
+	}
+
+	fmt.Println("\nLoading wallet balances...")
+	ShowInitialBalances()
+
+	fmt.Print("\nEnter amount to swap (in MON/WMON): ")
+	amountInput, _ := reader.ReadString('\n')
+	amountInput = strings.TrimSpace(amountInput)
+
+	amount, err := strconv.ParseFloat(amountInput, 64)
+	if err != nil || amount <= 0 {
+		fmt.Println("Invalid amount. Please enter a positive number.")
+		os.Exit(1)
+	}
+
+	amountWei := new(big.Float).Mul(big.NewFloat(amount), big.NewFloat(1e18))
+	amountInt := new(big.Int)
+	amountWei.Int(amountInt)
+
+	fmt.Print("\nEnter number of swap to perform: ")
+	numInput, _ := reader.ReadString('\n')
+	numInput = strings.TrimSpace(numInput)
+
+	numswap, err := strconv.Atoi(numInput)
+	if err != nil || numswap < 1 {
+		fmt.Println("Invalid number. Please enter a positive integer.")
+		os.Exit(1)
+	}
+
+	fmt.Printf("\nPreparing to perform %d swap of %.4f %s to %s\n",
+		numswap, amount, strings.Split(direction, "_")[0], strings.Split(direction, "_")[2])
+	fmt.Println("Starting swap...\n")
+
+	ApebondSwap(amountInt, numswap, direction)
 }
 
 func ApebondSwap(amount *big.Int, numswap int, direction string) {
