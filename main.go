@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	
+
 	"github.com/nekowawolf/swap-testnet-bot/swap"
 )
 
