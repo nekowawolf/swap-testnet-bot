@@ -501,7 +501,7 @@ func processSwapResults(results chan SwapResult, totalswap int, wmonABI abi.ABI)
 						cyan("=>"),
 						magenta(fmt.Sprintf("%.4f", monBalanceFloat)),
 						magenta(fmt.Sprintf("%.4f", wmonBalanceFloat)))
-					fmt.Println("▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔")
+					fmt.Println("▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔")
 				}
 				client.Close()
 			}
