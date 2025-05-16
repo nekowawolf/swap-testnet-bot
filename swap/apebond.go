@@ -45,6 +45,7 @@ var (
 type SwapResult struct {
 	Success     bool
 	WalletIndex int
+	Cycle       int
 	Direction   string
 	TxHash      string
 	Fee         string
@@ -164,33 +165,33 @@ func ApebondSwap(amount *big.Int, numswap int, direction string) {
 	fmt.Println("Starting swaps...\n")
 
 	for i := 0; i < numswap; i++ {
-		wg.Add(1)
-		walletIndex := i % len(activeWallets)
+        wg.Add(1)
+        walletIndex := i % len(activeWallets)
 
-		currentDirection := direction
+        currentDirection := direction
 
-		go func(swapNum int, walletIdx int, dir string) {
-			defer wg.Done()
-			time.Sleep(time.Duration(swapNum*DELAY_SECONDS_MONAD) * time.Second)
-			walletMutexes[walletIdx].Lock()
-			defer walletMutexes[walletIdx].Unlock()
+        go func(swapNum int, walletIdx int, dir string) {
+            defer wg.Done()
+            time.Sleep(time.Duration(swapNum*DELAY_SECONDS_MONAD) * time.Second)
+            walletMutexes[walletIdx].Lock()
+            defer walletMutexes[walletIdx].Unlock()
 
-			var result SwapResult
-			if dir == "MON_to_WMON" {
-				result = swapMONtoWMON(activeWallets[walletIdx], walletIdx+1, amount, wmonABI)
-			} else {
-				result = swapWMONtoMON(activeWallets[walletIdx], walletIdx+1, amount, wmonABI)
-			}
-			results <- result
-		}(i, walletIndex, currentDirection)
-	}
+            var result SwapResult
+            if dir == "MON_to_WMON" {
+                result = swapMONtoWMON(activeWallets[walletIdx], walletIdx+1, swapNum+1, amount, wmonABI) 
+            } else {
+                result = swapWMONtoMON(activeWallets[walletIdx], walletIdx+1, swapNum+1, amount, wmonABI) 
+            }
+            results <- result
+        }(i, walletIndex, currentDirection)
+    }
 
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
+    go func() {
+        wg.Wait()
+        close(results)
+    }()
 
-	processSwapResults(results, numswap, wmonABI)
+    processSwapResults(results, numswap, wmonABI)
 }
 
 func getMONBalance(client *ethclient.Client, address common.Address) (*big.Int, error) {
@@ -223,7 +224,7 @@ func getWMONBalance(client *ethclient.Client, address common.Address, wmonABI ab
 	return balance, nil
 }
 
-func swapMONtoWMON(privateKey string, walletIndex int, amount *big.Int, wmonABI abi.ABI) SwapResult {
+func swapMONtoWMON(privateKey string, walletIndex int, cycle int, amount *big.Int, wmonABI abi.ABI) SwapResult {
 	client, err := ethclient.Dial(RPC_URL_MONAD)
 	if err != nil {
 		return SwapResult{
@@ -339,16 +340,17 @@ func swapMONtoWMON(privateKey string, walletIndex int, amount *big.Int, wmonABI 
 	)
 
 	return SwapResult{
-		Success:     true,
-		WalletIndex: walletIndex,
-		Direction:   "MON_to_WMON",
-		TxHash:      signedTx.Hash().Hex(),
-		Fee:         fmt.Sprintf("%.6f MON", feeStr),
-		Amount:      fmt.Sprintf("%.4f MON", amountFloat),
-	}
+        Success:     true,
+        WalletIndex: walletIndex,
+        Cycle:       cycle,
+        Direction:   "MON_to_WMON",
+        TxHash:      signedTx.Hash().Hex(),
+        Fee:         fmt.Sprintf("%.6f MON", feeStr),
+        Amount:      fmt.Sprintf("%.4f MON", amountFloat),
+    }
 }
 
-func swapWMONtoMON(privateKey string, walletIndex int, amount *big.Int, wmonABI abi.ABI) SwapResult {
+func swapWMONtoMON(privateKey string, walletIndex int, cycle int, amount *big.Int, wmonABI abi.ABI) SwapResult {
 	client, err := ethclient.Dial(RPC_URL_MONAD)
 	if err != nil {
 		return SwapResult{
@@ -463,14 +465,15 @@ func swapWMONtoMON(privateKey string, walletIndex int, amount *big.Int, wmonABI 
 		big.NewFloat(1e18),
 	)
 
-	return SwapResult{
-		Success:     true,
-		WalletIndex: walletIndex,
-		Direction:   "WMON_to_MON",
-		TxHash:      signedTx.Hash().Hex(),
-		Fee:         fmt.Sprintf("%.6f MON", feeStr),
-		Amount:      fmt.Sprintf("%.4f WMON", amountFloat),
-	}
+	 return SwapResult{
+        Success:     true,
+        WalletIndex: walletIndex,
+        Cycle:       cycle,
+        Direction:   "WMON_to_MON",
+        TxHash:      signedTx.Hash().Hex(),
+        Fee:         fmt.Sprintf("%.6f MON", feeStr),
+        Amount:      fmt.Sprintf("%.4f WMON", amountFloat),
+    }
 }
 
 func processSwapResults(results chan SwapResult, totalswap int, wmonABI abi.ABI) {
@@ -479,7 +482,7 @@ func processSwapResults(results chan SwapResult, totalswap int, wmonABI abi.ABI)
 	for res := range results {
 		if res.Success {
 			successCount++
-			fmt.Printf("%s %s\n", green(fmt.Sprintf("[Wallet #%d]", res.WalletIndex)), cyan(res.Direction))
+			fmt.Printf("%s %s %s\n", green(fmt.Sprintf("[Wallet #%d]", res.WalletIndex)), cyan(res.Direction), green(fmt.Sprintf("(Cycle %d/%d)", res.Cycle, totalswap)))
 			fmt.Printf("%s %s\n", yellow("Amount:"), magenta(res.Amount))
 			fmt.Printf("%s %s\n", yellow("TxHash:"), blue(shortenHash(res.TxHash)))
 			fmt.Printf("%s %s\n", yellow("Fee:"), magenta(res.Fee))
